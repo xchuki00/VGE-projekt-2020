@@ -1,13 +1,16 @@
 ###Brno University of Technology 
 ####Faculty of Information Technology
 
-FYO - school project 
+VGE - school project 
 2019/2020
  
 Author:
  
     Patrik Chukir 
     chuki00@stud.fit.vutbr.cz || p.chukir@gmail.com
+    
+    Imo Stoff
+    xstoff02@stud.fit.vutbr.cz
    
 This projekt is based on 
    * NanoGui - [https://github.com/wjakob/nanogui](https://github.com/wjakob/nanogui)
