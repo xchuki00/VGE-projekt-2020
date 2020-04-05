@@ -1,0 +1,8 @@
+\babel@toc {czech}{}
+\babel@toc {english}{}
+\contentsline {section}{\numberline {1}Abstrakt}{3}
+\contentsline {section}{\numberline {2}\IeC {\'U}vod}{4}
+\contentsline {section}{\numberline {3}Newtonovy krou\IeC {\v z}ky}{4}
+\contentsline {section}{\numberline {4}P\IeC {\r u}vod pojmenov\IeC {\'a}n\IeC {\'\i }}{5}
+\contentsline {section}{\numberline {5}Aplikace}{5}
+\contentsline {section}{\numberline {6}Zdroje}{9}

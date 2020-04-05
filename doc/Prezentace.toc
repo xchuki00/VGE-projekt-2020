@@ -1,0 +1,7 @@
+\babel@toc {czech}{}
+\babel@toc {english}{}
+\beamer@sectionintoc {1}{Newtonovy krou\IeC {\v z}ky}{2}{0}{1}
+\beamer@sectionintoc {2}{P\IeC {\r u}vod}{5}{0}{2}
+\beamer@sectionintoc {3}{Vyu\IeC {\v z}it\IeC {\'\i } jevu}{6}{0}{3}
+\beamer@sectionintoc {4}{V p\IeC {\v r}\IeC {\'\i }rod\IeC {\v e}}{7}{0}{4}
+\beamer@sectionintoc {5}{Zdroje}{8}{0}{5}
