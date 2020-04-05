@@ -9,5 +9,5 @@ include_directories(${NANOGUI_EXTRA_INCS})
 add_definitions(${NANOGUI_EXTRA_DEFS})
 
 
-add_executable(NewtonsRings NewtonsRings.cpp ${MyResources})
+add_executable(NewtonsRings Vge.cpp ${MyResources})
 target_link_libraries( NewtonsRings nanogui ${NANOGUI_EXTRA_LIBS})

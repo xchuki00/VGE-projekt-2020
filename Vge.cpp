@@ -45,7 +45,7 @@ using nanogui::MatrixXu;
 using nanogui::MatrixXf;
 using nanogui::Label;
 
-class NewtonsRingsApp {
+class VgeApp {
 public:
     float diameter = 6;
     float radius = 5000;
@@ -421,5 +421,5 @@ public:
 };
 
 int main() {
-    NewtonsRingsApp *app = new NewtonsRingsApp();
+    VgeApp *app = new VgeApp();
 }
