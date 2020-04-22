@@ -15,6 +15,7 @@
 #include <nanogui/window.h>
 #include "OutputWindow.h"
 #include <nanogui/glutil.h>
+#include <sstream>
 
 using namespace std;
 using namespace nanogui;
@@ -29,8 +30,8 @@ using nanogui::Label;
 
 string VgeApp::loadShader(string path) {
     std::ifstream ifs(path);
-    std::string content( (std::istreambuf_iterator<char>(ifs) ),
-                         (std::istreambuf_iterator<char>()    ) );
+    std::string content((std::istreambuf_iterator<char>(ifs)),
+                        (std::istreambuf_iterator<char>()));
     return content;
 }
 
@@ -71,7 +72,7 @@ VgeApp::VgeApp() {
      * Load GLSL shader code from embedded resources
      * See: https://github.com/cyrilcode/embed-resource
      */
-    mShader.initFromFiles("raymarching_shader","../shader/vert.glsl","../shader/frag.glsl");
+    mShader.initFromFiles("raymarching_shader", "../shader/vert.glsl", "../shader/frag.glsl");
 
 
     MatrixXu indices(3, 2); /* Draw 2 triangles */
@@ -80,9 +81,9 @@ VgeApp::VgeApp() {
 
     MatrixXf positions(3, 4);
     positions.col(0) << -1, -1, 0;
-    positions.col(1) <<  1, -1, 0;
-    positions.col(2) <<  1,  1, 0;
-    positions.col(3) << -1,  1, 0;
+    positions.col(1) << 1, -1, 0;
+    positions.col(2) << 1, 1, 0;
+    positions.col(3) << -1, 1, 0;
 
     mShader.bind();
     mShader.uploadIndices(indices);
@@ -133,8 +134,8 @@ void VgeApp::addControls(Window *window) {
 }
 
 void VgeApp::metoda1(Window *window) {
-    outputWindow  = new OutputWindow();
-    cout << "Metoda1"<< endl;
+    outputWindow = new OutputWindow();
+    cout << "Metoda1" << endl;
 }
 
 void VgeApp::addFileDialog(Window *window) {
@@ -144,13 +145,36 @@ void VgeApp::addFileDialog(Window *window) {
                                    Alignment::Middle, 0, 6));
     auto b = new Button(tools, "Open");
     b->setCallback([&] {
-        cout << "File dialog result: " << file_dialog(
-                { {"png", "Portable Network Graphics"}, {"txt", "Text file"} }, false) << endl;
+        auto file = file_dialog(
+                {{"csv", "Csv"},
+                 {"txt", "Text file"}}, false);
+        cout << "File dialog result: " << file << endl;
+
+        std::ifstream infile(file);
+        std::string line;
+        while (std::getline(infile, line))
+        {
+
+            std::istringstream s(line);
+            std::string field;
+            Vector3f point;
+            int i=0;
+            while (getline(s, field,';')){
+                point.array()[i]= std::stof (field);
+                i++;
+            }
+            this->inputPoints.push_back(point);
+        }
+        for (auto &point : this->inputPoints){
+            cout<<"x: "<<point.x()<<"y: "<<point.y()<<"z: "<<point.z()<<endl;
+        }
+
     });
     b = new Button(tools, "Save");
     b->setCallback([&] {
         cout << "File dialog result: " << file_dialog(
-                { {"png", "Portable Network Graphics"}, {"txt", "Text file"} }, true) << endl;
+                {{"png", "Portable Network Graphics"},
+                 {"txt", "Text file"}}, true) << endl;
     });
 
 }

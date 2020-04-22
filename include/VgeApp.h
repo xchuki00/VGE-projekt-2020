@@ -9,19 +9,20 @@
 #include <nanogui/window.h>
 #include "OutputWindow.h"
 #include <nanogui/glutil.h>
-
+#include <vector>
 
 #ifndef VGE_VGEAPP_H
 #define VGE_VGEAPP_H
 
 using nanogui::Window;
+using nanogui::Vector3f;
 using namespace std;
 
 class VgeApp {
 public:
     nanogui::GLShader mShader;
     OutputWindow *outputWindow;
-
+    std::vector<Vector3f> inputPoints;
     VgeApp();
 
     void addFileDialog(Window *window);
