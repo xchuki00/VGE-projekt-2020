@@ -72,24 +72,21 @@ VgeApp::VgeApp() {
      * Load GLSL shader code from embedded resources
      * See: https://github.com/cyrilcode/embed-resource
      */
-    mShader.initFromFiles("raymarching_shader", "../shader/vert.glsl", "../shader/frag.glsl");
-
-
-    MatrixXu indices(3, 2); /* Draw 2 triangles */
-    indices.col(0) << 0, 1, 2;
-    indices.col(1) << 2, 3, 0;
-
-    MatrixXf positions(3, 4);
-    positions.col(0) << -1, -1, 0;
-    positions.col(1) << 1, -1, 0;
-    positions.col(2) << 1, 1, 0;
-    positions.col(3) << -1, 1, 0;
+    mShader.initFromFiles("input_shader", "../shader/vert.glsl", "../shader/frag.glsl");
 
     mShader.bind();
-    mShader.uploadIndices(indices);
-    mShader.uploadAttrib("position", positions);
+    mShader.uploadAttrib("position", (uint32_t) this->inputPoints.size()*3, 3, sizeof(GL_FLOAT),
+                         GL_FLOAT, 0, this->inputPoints.data(), -1);
     mShader.setUniform("intensity", 0.5f);
 
+    Matrix4f mvp;
+    mvp.setIdentity();
+    mvp.topLeftCorner<3,3>() = Matrix3f(Eigen::AngleAxisf((float) 0,  Vector3f::UnitZ())) * 0.25f;
+
+    mvp.row(0) *= (float) 650 / (float) 600;
+
+    mShader.setUniform("modelViewProj", mvp);
+//
     app.drawAll();
     app.setVisible(true);
 
@@ -105,10 +102,12 @@ VgeApp::VgeApp() {
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 
         mShader.bind();
-        mShader.drawIndexed(GL_TRIANGLES, 0, 2);
+
+
+        /* Draw 2 triangles starting at index 0 */
+        mShader.drawArray(GL_POINTS, 0, this->inputPoints.size());
 
         app.drawWidgets();
-
         glfwSwapBuffers(app.glfwWindow());
         glfwPollEvents();
     }
@@ -168,6 +167,9 @@ void VgeApp::addFileDialog(Window *window) {
         for (auto &point : this->inputPoints){
             cout<<"x: "<<point.x()<<"y: "<<point.y()<<"z: "<<point.z()<<endl;
         }
+        mShader.bind();
+        mShader.uploadAttrib("position", (uint32_t) this->inputPoints.size()*3, 3, sizeof(GL_FLOAT),
+                             GL_FLOAT, 0, this->inputPoints.data(), -1);
 
     });
     b = new Button(tools, "Save");
