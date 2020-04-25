@@ -2,6 +2,8 @@
 // Created by patrik on 05.04.20.
 //
 
+#ifndef VGE_VGEAPP_H
+#define VGE_VGEAPP_H
 
 #if defined(_WIN32)
 #include <windows.h>
@@ -14,9 +16,8 @@
 #include <nanogui/textbox.h>
 #include <nanogui/checkbox.h>
 #include "Arrangement.h"
+#include "Nnr.h"
 
-#ifndef VGE_VGEAPP_H
-#define VGE_VGEAPP_H
 #define WINDOW_SIZE_X 1000
 #define WINDOW_SIZE_Y 1000
 
@@ -32,24 +33,19 @@ class VgeApp {
 public:
     nanogui::GLShader pointShader;
     nanogui::GLShader lineShader;
-    bool useLineShader = false;
-    OutputWindow *outputWindow;
+    bool lineCalculated = false;
     vector<Vector3f> inputPoints;
     vector<tuple<Vector3f,Vector3f>> lines;
+    vector<int> linesXpoints;
     vector<Vector3f> linesColors;
-    Arrangement *arrangement = nullptr;
-    bool drawLevels = true;
-    int queryLineIndex = -1;
-    TextBox *queryLine[2];
-    CheckBox *queryLineVertical;
-    int nnrIndex = -1;
+    Nnr *nnr;
     VgeApp();
 
     void addFileDialog(Window *window);
 
     void calculateLines();
 
-    void addControls(Window *window);
+    void addControls(Widget *app);
 
 
     string loadShader(string path);

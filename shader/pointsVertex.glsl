@@ -12,7 +12,8 @@ void main() {
    float sum = red+green;
    if(nnr == position){
       colorIndexVS =vec3(red/sum,green/sum,0.0)*nnrIntensity;
-   }else{
+   }
+   else{
       colorIndexVS =vec3(red/sum,green/sum,0.0);
    }
    gl_Position = modelViewProj * vec4(position, 1.0);

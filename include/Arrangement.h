@@ -21,7 +21,7 @@ public:
     vector<Edge> edges; //vertex of arrangement
     bool valid = false;
 
-    void planeSweep(int queryIndex) {
+    void planeSweep() {
         sort(vertices.begin(), vertices.end(), [](const auto &lhs, const auto &rhs) {
             return lhs.x() < rhs.x();
         });
@@ -78,15 +78,15 @@ public:
         }
     }
 
-    void createArragement(vector<Vector3f> *inputPoints, vector<tuple<Vector3f, Vector3f>> *lines, int queryIndex) {
+    void createArragement(vector<Vector3f> *inputPoints, vector<tuple<Vector3f, Vector3f>> *lines) {
         levelTree = new LevelTree();
         levelTree->initTree(0, (lines->size()) - 1);
-        calculateIntersection(lines, queryIndex);
+        calculateIntersection(lines);
         for (auto &edge :edges) {
             cout << edge.lineIndex << ": [" << edge.start.x() << "," << edge.start.y() << "]" << "[" << edge.end.x()
                  << "," << edge.end.y() << "]" << endl;
         }
-        planeSweep(queryIndex);
+        planeSweep();
         levelTree->resetShaderData();
         valid = true;
     };
@@ -156,11 +156,11 @@ public:
         edges.insert(edge, newEdge);
     }
 
-    void calculateIntersection(vector<tuple<Vector3f, Vector3f>> *lines, int queryIndex) {
+    void calculateIntersection(vector<tuple<Vector3f, Vector3f>> *lines) {
         vector<Edge> addedLines;
         int index = 0;
         for (auto &line : *lines) {
-            if (index == queryIndex) {
+            if (index == 0) {
                 index++;
                 continue;
             }
