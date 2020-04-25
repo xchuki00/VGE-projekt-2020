@@ -48,7 +48,7 @@ VgeApp::VgeApp() {
     window->setFixedWidth(250);
     addFileDialog(window);
 
-    nnr = new Nnr(&inputPoints,&lines,WINDOW_SIZE_X,WINDOW_SIZE_Y);
+    nnr = new Nnr(&inputPoints,&lines,&linesXpoints,&version,WINDOW_SIZE_X,WINDOW_SIZE_Y);
 
     addControls(&app);
 
@@ -87,11 +87,8 @@ VgeApp::VgeApp() {
         if (lineCalculated) {
             lineShader.bind();
             lineShader.drawArray(GL_LINES, 0, lines.size() * 2);
-        } else {
-            lineShader.bind();
-            lineShader.drawArray(GL_LINES, 0, 2);
         }
-
+        nnr->draw();
         app.drawWidgets();
         glfwSwapBuffers(app.glfwWindow());
         glfwPollEvents();
@@ -166,7 +163,7 @@ void VgeApp::openInputCsv() {
 
     std::ifstream infile(file);
     std::string line;
-    this->inputPoints.clear();
+    inputPoints.clear();
     lines.clear();
     linesColors.clear();
     linesXpoints.clear();
@@ -186,6 +183,7 @@ void VgeApp::openInputCsv() {
     sortPointsByX();
     lineCalculated = false;
     calculateLines();
+    version++;
     pointShader.bind();
     pointShader.uploadAttrib("position", (uint32_t) this->inputPoints.size() * 3, 3, sizeof(GL_FLOAT),
                              GL_FLOAT, 0, this->inputPoints.data(), -1);
