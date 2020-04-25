@@ -10,8 +10,10 @@
 #include "OutputWindow.h"
 #include <nanogui/glutil.h>
 #include <vector>
+#include <tuple>
 #include <nanogui/textbox.h>
 #include <nanogui/checkbox.h>
+#include "Arrangement.h"
 
 #ifndef VGE_VGEAPP_H
 #define VGE_VGEAPP_H
@@ -32,9 +34,11 @@ public:
     nanogui::GLShader lineShader;
     bool useLineShader = false;
     OutputWindow *outputWindow;
-    std::vector<Vector3f> inputPoints;
-    std::vector<Vector3f> lines;
-    std::vector<Vector2f> linesColors;
+    vector<Vector3f> inputPoints;
+    vector<tuple<Vector3f,Vector3f>> lines;
+    vector<Vector3f> linesColors;
+    Arrangement *arrangement = nullptr;
+    bool drawLevels = true;
     int queryLineIndex = -1;
     TextBox *queryLine[2];
     CheckBox *queryLineVertical;

@@ -11,9 +11,9 @@ void main() {
    float green = abs(position[1]);
    float sum = red+green;
    if(nnr == position){
-      colorIndexVS =vec3(red/sum,green/sum,1.0)*nnrIntensity;
+      colorIndexVS =vec3(red/sum,green/sum,0.0)*nnrIntensity;
    }else{
-      colorIndexVS =vec3(red/sum,green/sum,1.0);
+      colorIndexVS =vec3(red/sum,green/sum,0.0);
    }
    gl_Position = modelViewProj * vec4(position, 1.0);
 

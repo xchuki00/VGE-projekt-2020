@@ -14,11 +14,11 @@
 #include <cmath>
 #include <string>
 #include "../include/VgeApp.h"
-#include <nanogui/window.h>
 #include "OutputWindow.h"
 #include <nanogui/glutil.h>
 #include <sstream>
 #include <cmath>
+#include <tuple>
 
 using namespace std;
 using namespace nanogui;
@@ -40,7 +40,6 @@ string VgeApp::loadShader(string path) {
 
 VgeApp::VgeApp() {
     nanogui::init();
-
     /**
      * Create a screen, add a window.
      * To the window add a label and a slider widget.
@@ -61,6 +60,7 @@ VgeApp::VgeApp() {
     window->setPosition(Vector2i(0, 100));
     window->setLayout(new GroupLayout());
     addControls(window);
+    arrangement = new Arrangement();
 
     // Do the layout calculations based on what was added to the GUI
     app.performLayout();
@@ -99,10 +99,15 @@ VgeApp::VgeApp() {
 
         }
         pointShader.drawArray(GL_POINTS, 0, this->inputPoints.size());
-
-        if (useLineShader) {
+        if(arrangement->valid && drawLevels){
+            arrangement->draw();
+            if (queryLineIndex >= 0 && lines.size() >= queryLineIndex) {
+                lineShader.bind();
+                lineShader.drawArray(GL_LINES, queryLineIndex, 2);
+            }
+        }else if (useLineShader) {
             lineShader.bind();
-            lineShader.drawArray(GL_LINES, 0, lines.size());
+            lineShader.drawArray(GL_LINES, 0, lines.size()*2);
         } else if (queryLineIndex >= 0 && lines.size() >= queryLineIndex) {
             lineShader.bind();
             lineShader.drawArray(GL_LINES, queryLineIndex, 2);
@@ -186,24 +191,23 @@ void VgeApp::calculateLines() {
     for (auto &point : inputPoints) {
         //P(a,b) -> line y = ax-b
         float y;
-        y = point.x() * 5 - point.y();
-        Vector3f point1(5, y, 0);
-        y = point.x() * (-5) - point.y();
-        Vector3f point2(-5, y, 0);
+        y = point.x() * WINDOW_SIZE_X - point.y();
+        Vector3f point1(WINDOW_SIZE_X, y, 0);
+        y = point.x() * (-WINDOW_SIZE_X) - point.y();
+        Vector3f point2(-WINDOW_SIZE_X, y, 0);
         float red = abs(point.x());
         float green = abs(point.y());
         float sum = red + green;
-        Vector2f lineColor(red / sum, green / sum);
-        lines.push_back(point1);
-        lines.push_back(point2);
+        Vector3f lineColor(red / sum, green / sum,0);
+        lines.push_back(tuple<Vector3f,Vector3f>(point1,point2));
         linesColors.push_back(lineColor);
         linesColors.push_back(lineColor);
 
 //        cout << "[" << point1.x() << "," << point1.y() << "]," << "[" << point2.x() << "," << point2.y() << "]" << endl;
     }
-    lineShader.uploadAttrib("position", (uint32_t) lines.size() * 3, 3, sizeof(GL_FLOAT),
+    lineShader.uploadAttrib("position", (uint32_t) lines.size() * 6, 3, sizeof(GL_FLOAT),
                             GL_FLOAT, 0, lines.data(), -1);
-    lineShader.uploadAttrib("color", (uint32_t) linesColors.size() * 3, 2, sizeof(GL_FLOAT),
+    lineShader.uploadAttrib("color", (uint32_t) linesColors.size() * 3, 3, sizeof(GL_FLOAT),
                             GL_FLOAT, 0, linesColors.data(), -1);
     useLineShader = true;
 }
@@ -237,8 +241,8 @@ void VgeApp::solveNNL() {
             nnrIndex++;
         }
     } else {
+        calculateLines();
         calculateArrangement();
-        nnrIndex=0;
     }
 }
 
@@ -253,33 +257,31 @@ void VgeApp::drawQueryLine() {
 
     lineShader.setUniform("modelViewProj", mvp);
     Vector3f point1, point2;
-    Vector2f lineColor(0, 0);
+    Vector3f lineColor(0, 0,1);
 
     if (queryLineVertical->checked()) {
-        point1 = Vector3f(stof(queryLine[1]->value()), 5, 0);
-        point2 = Vector3f(stof(queryLine[1]->value()), -5, 0);
+        point1 = Vector3f(stof(queryLine[1]->value()), WINDOW_SIZE_Y, 0);
+        point2 = Vector3f(stof(queryLine[1]->value()), -WINDOW_SIZE_Y, 0);
     } else {
         Vector2f point(stof(queryLine[0]->value()), stof(queryLine[1]->value()));
-        float y = point.x() * 5 - point.y();
-        point1 = Vector3f(5, y, 0);
-        y = point.x() * (-5) - point.y();
-        point2 = Vector3f(-5, y, 0);
+        float y = point.x() * WINDOW_SIZE_X - point.y();
+        point1 = Vector3f(WINDOW_SIZE_X, y, 0);
+        y = point.x() * (-WINDOW_SIZE_X) - point.y();
+        point2 = Vector3f(-WINDOW_SIZE_X, y, 0);
     }
     if (queryLineIndex == -1) {
         queryLineIndex = lines.size();
-        lines.push_back(point1);
-        lines.push_back(point2);
+        lines.push_back(tuple<Vector3f,Vector3f>(point1,point2));
         linesColors.push_back(lineColor);
         linesColors.push_back(lineColor);
     } else {
-        lines[queryLineIndex] = (point1);
-        lines[queryLineIndex + 1] = (point2);
+        lines[queryLineIndex] = tuple<Vector3f,Vector3f>(point1,point2);
         linesColors[queryLineIndex] = (lineColor);
         linesColors[queryLineIndex + 1] = (lineColor);
     }
-    lineShader.uploadAttrib("position", (uint32_t) lines.size() * 3, 3, sizeof(GL_FLOAT),
+    lineShader.uploadAttrib("position", (uint32_t) lines.size() * 6, 3, sizeof(GL_FLOAT),
                             GL_FLOAT, 0, lines.data(), -1);
-    lineShader.uploadAttrib("color", (uint32_t) linesColors.size() * 3, 2, sizeof(GL_FLOAT),
+    lineShader.uploadAttrib("color", (uint32_t) linesColors.size() * 3, 3, sizeof(GL_FLOAT),
                             GL_FLOAT, 0, linesColors.data(), -1);
 }
 
@@ -308,7 +310,7 @@ void VgeApp::openInputCsv() {
     sortPointsByX();
     useLineShader = false;
     nnrIndex = -1;
-
+    arrangement->valid = false;
     pointShader.bind();
     pointShader.uploadAttrib("position", (uint32_t) this->inputPoints.size() * 3, 3, sizeof(GL_FLOAT),
                              GL_FLOAT, 0, this->inputPoints.data(), -1);
@@ -316,9 +318,6 @@ void VgeApp::openInputCsv() {
 }
 
 void VgeApp::sortPointsByX() {
-//    for (auto &point : inputPoints) {
-//        cout<<"["<<point.x()<<","<<point.y()<<","<<point.z()<<"]"<<endl;
-//    }
     sort(inputPoints.begin(), inputPoints.end(), [](const auto &lhs, const auto &rhs) {
         return lhs.x() < rhs.x();
     });
@@ -326,6 +325,9 @@ void VgeApp::sortPointsByX() {
 }
 
 void VgeApp::calculateArrangement() {
-
+    arrangement->createArragement(&inputPoints,&lines,queryLineIndex);
+    pointShader.bind();
+    pointShader.uploadAttrib("position", (uint32_t) this->inputPoints.size() * 3, 3, sizeof(GL_FLOAT),
+                             GL_FLOAT, 0, this->inputPoints.data(), -1);
 }
 
