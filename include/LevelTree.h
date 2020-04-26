@@ -17,11 +17,23 @@ using nanogui::Matrix4f;
 using nanogui::Matrix3f;
 
 using namespace std;
+
+struct LineEquation {
+    LineEquation(float d, float d1) {
+        A = d;
+        B = d1;
+    }
+
+    float A;
+    float B;
+};
+
 struct Edge {
     Vector3f start;
     Vector3f end;
     int lineIndex;
     bool sweeped = false;
+    LineEquation *lineEquation;
 };
 
 class LevelTree {
@@ -37,7 +49,7 @@ public:
     bool initiciated = false;
     nanogui::GLShader lineShader;
 
-    LevelTree(int windowX,int windowY) {
+    LevelTree(int windowX, int windowY) {
         lineShader.initFromFiles("level_tree_shader", "../shader/vert.glsl", "../shader/frag.glsl");
         lineShader.bind();
         windowSizeX = windowX;
@@ -52,26 +64,39 @@ public:
         Vector3f point1, point2;
         Vector2f lineColor(0, 0);
     }
-    LevelTree(){
+
+    LevelTree() {
     }
+
     void print() {
         vector<LevelTree *> stack;
         stack.push_back(this);
         int pos = 1;
         while (!stack.empty()) {
-            if (pos > stack.size()) {
-                pos = stack.size();
-            };
+
             for (int i = 0; i < pos; i++) {
+                if(stack.empty()){
+                    break;
+                }
                 LevelTree *actual = stack[stack.size() - 1];
                 stack.pop_back();
-                cout << actual->theta << "(" << stack.size() << ")" << ", ";
-                if (actual->right != nullptr) {
-                    stack.insert(stack.begin(), actual->right);
+                if (actual == nullptr) {
+                    cout << "x" << ", ";
+                } else {
+                    cout << actual->theta << ", ";
+
+                    if (actual->left != nullptr) {
+                        stack.insert(stack.begin(), actual->left);
+                    } else {
+                        stack.insert(stack.begin(), nullptr);
+                    }
+                    if (actual->right != nullptr) {
+                        stack.insert(stack.begin(), actual->right);
+                    } else {
+                        stack.insert(stack.begin(), nullptr);
+                    }
                 }
-                if (actual->left != nullptr) {
-                    stack.insert(stack.begin(), actual->left);
-                }
+
             }
             cout << endl;
             pos *= 2;
@@ -152,8 +177,8 @@ public:
             }
             pos *= 2;
         }
-        cout << "DATA SIZE " << edgeCount << endl;
         edgeCount = data.size();
+        cout << "DATA SIZE " << edgeCount << endl;
         lineShader.bind();
         lineShader.uploadAttrib("position", (uint32_t) data.size() * 6, 3, sizeof(GL_FLOAT),
                                 GL_FLOAT, 0, data.data(), -1);
@@ -162,78 +187,81 @@ public:
     }
 
     bool upOrDown(Vector3f queryPoint, Edge *pEdge) {
+        for (auto &edge : level) {
+            if ((edge.start.x() >= queryPoint.x() && edge.end.x() <= queryPoint.x()) ||
+                (edge.start.x() <= queryPoint.x() && edge.end.x() >= queryPoint.x())) {
+                *pEdge = edge;
+                cout << edge.lineIndex << ": [" << edge.start.x() << "," << edge.start.y() << "]" << "[" << edge.end.x()
+                     << "," << edge.end.y() << "]"<<" eq: y = "<<edge.lineEquation->A<<" * x + "<<edge.lineEquation->B << endl;
+                float y = edge.lineEquation->A * queryPoint.x() + edge.lineEquation->B;
+                if (y < queryPoint.y()) {
+                    return true;
+                } else {
+                    return false;
+                }
+            }
+        }
         return false;
     }
 
-    void find(Vector3f queryPoint, Edge *up, Edge *down) {
-        vector<tuple<int,Edge*>> stack;
+    int find(Vector3f queryPoint, Edge *up, Edge *down) {
+        vector<tuple<int, Edge >> stack;
         auto actual = this;
         bool leaf = false;
-        Edge *edge;
         bool upOrDown = true;
         int stheta;
+        Edge edge;
+        cout << "START FIND ["<<queryPoint.x()<<", "<<queryPoint.y()<<"]" << endl;
         while (!leaf) {
-            if (actual->upOrDown(queryPoint,edge)) {
+            if (actual->upOrDown(queryPoint, &edge)) {
+                cout << "up " << actual->theta << endl;
                 if (actual->right != nullptr) {
-                    stack.push_back(tuple<int,Edge*>(actual->theta,edge));
+                    stack.push_back(tuple<int, Edge >(actual->theta, edge));
                     actual = actual->right;
                 } else {
-                    down = edge;
+                    *down = edge;
                     upOrDown = true;
-                    stheta = actual->theta+1;
+                    stheta = actual->theta + 1;
                     leaf = true;
                 }
             } else {
+                cout << "down " << actual->theta << endl;
                 if (actual->left != nullptr) {
-                    stack.push_back(tuple<int,Edge*>(actual->theta,edge));
+                    stack.push_back(tuple<int, Edge>(actual->theta, edge));
                     actual = actual->left;
                 } else {
-                    up = edge;
+                    *up = edge;
                     upOrDown = false;
-                    stheta = actual->theta-1;
+                    stheta = actual->theta - 1;
                     leaf = true;
                 }
             }
         }
         bool finded = false;
-
-        while(!stack.empty()){
+        while (!stack.empty()) {
             auto actual = stack[stack.size() - 1];
             stack.pop_back();
-            if(get<0>(actual) == stheta){
+            if (get<0>(actual) == stheta) {
                 finded = true;
-                if(upOrDown){
-                    up = get<1>(actual);
-                }else{
-                    down = get<1>(actual);
+                if (upOrDown) {
+                    *up = get<1>(actual);
+                } else {
+                    *down = get<1>(actual);
                 }
                 break;
             }
         }
-
-        lineShader.bind();
-        if(finded){
-            lineShader.setUniform("nnr1", up->start);
-            lineShader.setUniform("nnr2", up->end);
-            lineShader.setUniform("nnr3", down->start);
-            lineShader.setUniform("nnr4", down->end);
-        }else{
-            if(upOrDown){
-
-                lineShader.setUniform("nnr3", down->start);
-                lineShader.setUniform("nnr4", down->end);
-            }else{
-                lineShader.setUniform("nnr1", up->start);
-                lineShader.setUniform("nnr2", up->end);
-            }
+        if (finded) {
+            return 0;
+        } else if (upOrDown) {
+            return 2;
+        } else {
+            return 1;
         }
-
     }
 
     void draw() {
         lineShader.bind();
-        lineShader.setUniform("nnrIntensity", (int) trunc(glfwGetTime() * 10) % 2);
-
         lineShader.drawArray(GL_LINES, 0, edgeCount * 2);
     }
 };

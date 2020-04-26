@@ -33,6 +33,7 @@ class VgeApp {
 public:
     nanogui::GLShader pointShader;
     nanogui::GLShader lineShader;
+    int version = 0;
     bool lineCalculated = false;
     vector<Vector3f> inputPoints;
     vector<tuple<Vector3f,Vector3f>> lines;
