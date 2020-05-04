@@ -17,6 +17,7 @@
 #include <nanogui/checkbox.h>
 #include "Arrangement.h"
 #include "Nnr.h"
+#include "PointAlignment.h"
 
 #define WINDOW_SIZE_X 1000
 #define WINDOW_SIZE_Y 1000
@@ -40,6 +41,7 @@ public:
     vector<int> linesXpoints;
     vector<Vector3f> linesColors;
     Nnr *nnr;
+    PointAlignment *pal;
     VgeApp();
 
     void addFileDialog(Window *window);

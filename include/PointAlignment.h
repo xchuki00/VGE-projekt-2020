@@ -19,25 +19,47 @@
 using namespace nanogui;
 using namespace std;
 
+
 class PointAlignment {
 public:
     int threshold = 1;
     GLShader shader;
     GLShader intersectionsShader;
+    Matrix4f mvp;
 
-    float windowSizeX;
-    float windowSizeY;
-    TextBox *input[0];
+    int windowSizeX;
+    int windowSizeY;
+    TextBox *input[1];
 
     vector<Vector3f> *inputPoints;
     vector<tuple<Vector3f, Vector3f>> *lines;
-    vector<Vector3f> *intersections;
+
+    //Hold resulting intersections in model space
+    vector<Vector3f> intersections;
+    //Hold computed lines from intersection points, also in model space
+    vector<tuple<Vector3f, Vector3f>> alignedLines;
+
 
     PointAlignment(vector<Vector3f> *inputPoints, vector<tuple<Vector3f, Vector3f>> *lines, int windowX, int windowY) {
-        windowSizeX = (float)windowX;
-        windowSizeY = (float)windowY;
+        windowSizeX = (int)windowX;
+        windowSizeY = (int)windowY;
         this->inputPoints = inputPoints;
         this->lines = lines;
+        //this->intersections = new vector<Vector3f>;
+        intersections.push_back(Vector3f(0.5,0.5,0));
+
+        //Draw lines + withd blending to add up the color and act as accumulator for transformation
+        intersectionsShader.initFromFiles("accumulation_shader", "../shader/alignmentVertex.glsl", "../shader/alignmentFragment.glsl");
+        //Draw original lines at which points should be aligned
+        shader.initFromFiles("intersection_shader", "../shader/alignmentVertex.glsl", "../shader/pointsFragment.glsl");//, "../shader/pointsGeometry.glsl");
+
+        mvp.setIdentity();
+
+        shader.bind();
+        shader.setUniform("modelViewProj", mvp);
+        shader.uploadAttrib("position", (uint32_t) intersections.size() * 3, 3, sizeof(GL_FLOAT),
+                            GL_FLOAT, 0, intersections.data(), -1);
+
     }
 
     void addControls(Widget * app) {
@@ -63,33 +85,178 @@ public:
         input[0]->setCallback([this](const std::string &value) {
             if (value == "no")
                 return false;
-            drawIntersections();
+            //drawIntersections();
             return true;
         });
 
         auto b = new Button(box, "Solve");
-        b->setCallback([&] {
-            //solvePointAlignment();
-        });
+        b->setCallback([&] { this->solvePointAlignment(); }
+        );
+    }
+
+    void solvePointAlignment_() {
+
+        //Somewhere at initialization
+        GLuint fbo, render_buf;
+        glGenFramebuffers(1,&fbo);
+        glGenRenderbuffers(1,&render_buf);
+        glBindRenderbuffer(GL_RENDERBUFFER, render_buf);
+        glRenderbufferStorage(GL_RENDERBUFFER, GL_BGRA, windowSizeX, windowSizeY);
+        glBindFramebuffer(GL_DRAW_FRAMEBUFFER, fbo);
+        glFramebufferRenderbuffer(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER, render_buf);
+
+
+
+        glClearColor(0, 0, 0, 1);
+        //glViewPort(0,0, widowsizeX, windowSizeY);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+
+        glDisable(GL_DEPTH);
+
+        glEnable(GL_BLEND);
+        glBlendFunc(GL_ONE, GL_ONE);
+        glBlendEquation(GL_FUNC_ADD);
+
+        glBindFramebuffer(GL_DRAW_FRAMEBUFFER, fbo);
+
+        //lines->clear();
+        //lines->push_back({Vector3f(-0.5,0.0,0),Vector3f(-1,1,0)});
+        //lines->push_back({Vector3f(0.0,-0.5,0),Vector3f(1,-0.5,0)});
+        //lines->push_back({Vector3f(-0.5,-0.5,0),Vector3f(-0.5,0.5,0)});
+
+
+
+        intersectionsShader.bind();
+        intersectionsShader.setUniform("modelViewProj", mvp);
+        intersectionsShader.uploadAttrib("position", (uint32_t) lines->size() * 6, 3, sizeof(GL_FLOAT),
+                                         GL_FLOAT, 0, this->lines->data(), -1);
+        intersectionsShader.drawArray(GL_LINES, 0, (uint32_t)lines->size() * 2); //Draw into other context
+
+        std::vector<std::uint8_t> pixel_data(windowSizeX*windowSizeY*4);
+
+        glReadBuffer(GL_COLOR_ATTACHMENT0);
+        glReadPixels(0,0,windowSizeX,windowSizeY,GL_BGRA,GL_UNSIGNED_BYTE,&pixel_data[0]);
+
+
+        intersections.clear();
+
+        int max = 0;
+        for (int y = 0; y < windowSizeY; y++) {
+            for (int x = 0; x < windowSizeX; x++) {
+                if (pixel_data[y * windowSizeX * 4 + x * 4] > (0.1 * 255)) {
+                    intersections.push_back(Vector3f(x / float(windowSizeX), y / float(windowSizeY), 0));
+                }
+                max = max > pixel_data[y * windowSizeX * 4 + x * 4] ? max : pixel_data[y * windowSizeX * 4 + x * 4];
+
+            }
+        }
+        std::cout << "Maximum is:" << max << std::endl;
+
+        glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+
+        //TODO verify it does something
+
+        glDeleteFramebuffers(1,&fbo);
+        glDeleteRenderbuffers(1,&render_buf);
+
+        glEnable(GL_DEPTH);
+        glDisable(GL_BLEND);
+
     }
 
     void solvePointAlignment() {
+
+        uint8_t* pixel_data;
+
+        int threshold = stoi(input[0]->value());
+
+        //PBO INIT
+        GLuint pbo;
+        glGenBuffers(1,&pbo);
+        glBindBuffer(GL_PIXEL_PACK_BUFFER, pbo);
+        glBufferData(GL_PIXEL_PACK_BUFFER, int(windowSizeY)*int(windowSizeX)*4, NULL, GL_STREAM_READ);
+        glBindBuffer(GL_PIXEL_PACK_BUFFER, 0);
+
+        //glViewPort(0,0, widowsizeX, windowSizeY);
+        glClearColor(0, 0, 0, 1);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+
+        glDisable(GL_DEPTH_TEST);
+
+        glEnable(GL_BLEND);
+        glBlendFunc(GL_ONE, GL_ONE);
+        glBlendEquation(GL_FUNC_ADD);
+
+        //Magic happens here, offscreen render to pixel buffer
+        glReadBuffer(GL_FRONT);
+        glBindBuffer(GL_PIXEL_PACK_BUFFER, pbo);
+        glReadPixels(0, 0, windowSizeY, windowSizeX, GL_BGRA, GL_UNSIGNED_BYTE, 0);
+
         intersectionsShader.bind();
-        intersectionsShader.drawArray(GL_LINES, 0, inputPoints->size());
+        intersectionsShader.setUniform("modelViewProj", mvp);
+        intersectionsShader.uploadAttrib("position", (uint32_t)lines->size() * 6, 3, sizeof(GL_FLOAT),
+                                         GL_FLOAT, 0, this->lines->data(), -1);
+        intersectionsShader.drawArray(GL_LINES, 0, (uint32_t)lines->size() * 2); //Draw into other context
+
+
+        //glBindBuffer(GL_PIXEL_PACK_BUFFER, pbo);
+        pixel_data = (uint8_t*) glMapBuffer(GL_PIXEL_PACK_BUFFER, GL_READ_ONLY);
+        if (pixel_data) {
+            Matrix4f invmvp = mvp.inverse();
+
+            intersections.clear();
+            alignedLines.clear();
+            int max = 0;
+            int xm = 0;
+            int ym = 0;
+            for (int y = 0; y < windowSizeY; y++) {
+                for (int x = 0; x < windowSizeX; x++) {
+
+                    if (pixel_data[y * windowSizeX * 4 + x * 4] > (0.1 * threshold * 255)) {
+                        intersections.push_back((invmvp * Vector4f(x / float(windowSizeX), y / float(windowSizeY), 0, 1)).head(3));
+                        alignedLines.push_back(to_dual((invmvp * Vector4f(x / float(windowSizeX), y / float(windowSizeY), 0, 1)).head(3)));
+                    }
+
+                    if (max > pixel_data[y * windowSizeX * 4 + x * 4]) {
+                        max = max > pixel_data[y * windowSizeX * 4 + x * 4];
+                        xm= x;
+                        ym= y;
+                    }
+
+                }
+            }
+            std::cout << "Maximum is:" << max << std::endl << "at x,y:[" << xm << ',' << ym << "]" << std::endl;
+
+            glUnmapBuffer(GL_PIXEL_PACK_BUFFER);
+        }
+
+        glBindBuffer(GL_PIXEL_PACK_BUFFER, 0); //Release to normal pixel operation
+
+        glDeleteBuffers(1,&pbo);
+        glEnable(GL_DEPTH_TEST);
+        glDisable(GL_BLEND);
     }
 
-    void drawIntersections() {
-        shader.bind();
-        shader.drawArray(GL_POINTS, 0, intersections->size());
+    //Make point from line
+    Vector3f to_dual(tuple<Vector3f,Vector3f> line) {
+        float k = (get<1>(line).y() - get<0>(line).y()) / (get<1>(line).x() - get<0>(line).x());
+        float q = (get<1>(line).y() - get<1>(line).x() * k);
+
+        return Vector3f(k, -q, 0);
+    }
+
+    //Make line from point
+    tuple<Vector3f,Vector3f> to_dual(Vector3f point) {
+        return make_tuple(Vector3f(0, -point.y(), 0), Vector3f(point.y()/point.x(), 0, 0));
     }
 
     void draw() {
-//        shader.bind();
-//        shader.setUniform("nnrIntensity", (int) trunc(glfwGetTime() * 10) % 2);
-//
-//        shader.drawArray(GL_LINES, 0, edgeCount * 2);
-
-        drawIntersections();
+        //Draw detected alignments
+        shader.bind();
+        shader.setUniform("modelViewProj", mvp);
+        shader.uploadAttrib("position", (uint32_t) alignedLines.size() * 6, 3, sizeof(GL_FLOAT),
+                            GL_FLOAT, 0, alignedLines.data(), -1);
+        shader.drawArray(GL_LINES, 0, alignedLines.size() * 2);
     }
 };
 #endif //VGE_ALIGNMENT_H

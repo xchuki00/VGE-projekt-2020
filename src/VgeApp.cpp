@@ -25,6 +25,21 @@ using nanogui::MatrixXu;
 using nanogui::MatrixXf;
 using nanogui::Label;
 
+
+void GLAPIENTRY
+MessageCallback( GLenum source,
+                 GLenum type,
+                 GLuint id,
+                 GLenum severity,
+                 GLsizei length,
+                 const GLchar* message,
+                 const void* userParam )
+{
+    fprintf( stderr, "GL CALLBACK: %s type = 0x%x, severity = 0x%x, message = %s\n",
+             ( type == GL_DEBUG_TYPE_ERROR ? "** GL ERROR **" : "" ),
+             type, severity, message );
+}
+
 string VgeApp::loadShader(string path) {
     std::ifstream ifs(path);
     std::string content((std::istreambuf_iterator<char>(ifs)),
@@ -50,10 +65,17 @@ VgeApp::VgeApp() {
 
     nnr = new Nnr(&inputPoints,&lines,&linesXpoints,&version,WINDOW_SIZE_X,WINDOW_SIZE_Y);
 
+    pal = new PointAlignment(&inputPoints, &lines, WINDOW_SIZE_X, WINDOW_SIZE_Y);
+
     addControls(&app);
 
     // Do the layout calculations based on what was added to the GUI
     app.performLayout();
+
+    //Following did not work
+    // During init, enable debug output
+    //glEnable              ( GL_DEBUG_OUTPUT );
+    //glDebugMessageCallback( MessageCallback, 0 );
 
     /**
      * Load GLSL shader code from embedded resources
@@ -72,8 +94,8 @@ VgeApp::VgeApp() {
     mvp.topLeftCorner<3, 3>() = Matrix3f(Eigen::AngleAxisf((float) 0, Vector3f::UnitZ())) * 0.25f;
 
     mvp.row(0) *= (float) WINDOW_SIZE_X / (float) WINDOW_SIZE_Y;
-
     pointShader.setUniform("modelViewProj", mvp);
+    pal->mvp = mvp;
 
     app.drawAll();
     app.setVisible(true);
@@ -89,6 +111,9 @@ VgeApp::VgeApp() {
             lineShader.drawArray(GL_LINES, 0, lines.size() * 2);
         }
         nnr->draw();
+        //Added pixel alignment draw
+        pal->draw();
+
         app.drawWidgets();
         glfwSwapBuffers(app.glfwWindow());
         glfwPollEvents();
@@ -100,6 +125,7 @@ VgeApp::VgeApp() {
 
 void VgeApp::addControls(Widget *app) {
     nnr->addControls(app);
+    pal->addControls(app);
 }
 
 void VgeApp::calculateLines() {

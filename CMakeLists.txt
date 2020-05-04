@@ -3,6 +3,10 @@ project(vge)
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++14")
 
+set(NANOGUI_BUILD_EXAMPLE OFF CACHE BOOL " " FORCE)
+set(NANOGUI_BUILD_PYTHON  OFF CACHE BOOL " " FORCE)
+set(NANOGUI_INSTALL       OFF CACHE BOOL " " FORCE)
+
 add_subdirectory(lib/nanogui)
 include_directories(lib/nanogui/include)
 include_directories(${NANOGUI_EXTRA_INCS})
