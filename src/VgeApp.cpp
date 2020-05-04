@@ -49,6 +49,7 @@ string VgeApp::loadShader(string path) {
 
 VgeApp::VgeApp() {
     nanogui::init();
+
     /**
      * Create a screen, add a window.
      * To the window add a label and a slider widget.
@@ -101,6 +102,7 @@ VgeApp::VgeApp() {
     app.setVisible(true);
 
     while (!glfwWindowShouldClose(app.glfwWindow())) {
+
         glClearColor(0, 0, 0, 1);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 

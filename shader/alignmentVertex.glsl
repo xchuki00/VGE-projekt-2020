@@ -6,6 +6,7 @@ out vec3 colorIndex;
 void main() {
 
     colorIndex = vec3(0.1, 0.1, 0.1);
+    //colorIndexVS = vec3(0.1, 0.1, 0.1);
     gl_Position = modelViewProj*vec4(position, 1.0);
 
 }
