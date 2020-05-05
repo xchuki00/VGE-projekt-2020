@@ -18,8 +18,8 @@ This projekt is based on
    
 Build on Linux:
 ```
-git clone --recursive https://github.com/xchuki00/FyoProject.git
-cd FyoProject
+git clone --recursive https://github.com/xchuki00/VGE-projekt-2020.git
+cd VGE-projekt-2020
 mkdir build
 cd build
 cmake ../
