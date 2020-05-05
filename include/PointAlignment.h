@@ -46,12 +46,14 @@ public:
         this->inputPoints = inputPoints;
         this->lines = lines;
         //this->intersections = new vector<Vector3f>;
-        //intersections.push_back(Vector3f(0.5,0.5,0));
+        intersections.push_back(Vector3f(0.5,0.5,0));
 
         //Draw lines + withd blending to add up the color and act as accumulator for transformation
-        intersectionsShader.initFromFiles("accumulation_shader", "../shader/alignmentVertex.glsl", "../shader/alignmentFragment.glsl");
+        intersectionsShader.initFromFiles("accumulation_shader", "../shader/alignmentVertex.glsl",
+                "../shader/alignmentFragment.glsl");
         //Draw original lines at which points should be aligned
-        shader.initFromFiles("intersection_shader", "../shader/pointsVertex.glsl", "../shader/pointsFragment.glsl", "../shader/pointsGeometry.glsl");
+        shader.initFromFiles("intersection_shader", "../shader/pointsVertex.glsl",
+                "../shader/pointsFragment.glsl","../shader/pointsGeometry.glsl");
 
         mvp.setIdentity();
 
@@ -108,9 +110,7 @@ public:
         glBindBuffer(GL_PIXEL_PACK_BUFFER, 0);
 
         //glViewPort(0,0, widowsizeX, windowSizeY);
-        glClearColor(0, 0, 0, 1);
 
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
         glDisable(GL_DEPTH_TEST);
 
         glEnable(GL_BLEND);
@@ -118,12 +118,14 @@ public:
         glBlendEquation(GL_FUNC_ADD);
 
         //Magic happens here, offscreen render to pixel buffer
-        glReadBuffer(GL_FRONT);
+        glReadBuffer(GL_BACK);
         glBindBuffer(GL_PIXEL_PACK_BUFFER, pbo);
 
+        glClearColor(0, 0, 0, 0);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 
         intersectionsShader.bind();
-        intersectionsShader.setUniform("modelViewProj", mvp.setIdentity());
+        intersectionsShader.setUniform("modelViewProj", mvp);
         intersectionsShader.uploadAttrib("position", (uint32_t)lines->size() * 6, 3, sizeof(GL_FLOAT),
                                          GL_FLOAT, 0, this->lines->data(), -1);
         intersectionsShader.drawArray(GL_LINES, 0, (uint32_t)lines->size() * 2); //Draw into other context
@@ -138,24 +140,29 @@ public:
             intersections.clear();
             alignedLines.clear();
             int max = 0;
-            int xm = 0;
-            int ym = 0;
+
+            float xm = 0;
+            float ym = 0;
+            float xgl = 0;
+            float ygl = 0;
+
             for (int y = 0; y < windowSizeY; y++) {
                 for (int x = 0; x < windowSizeX; x++) {
 
-                    if (*pixel_data > (0.1 * threshold * 255)) {
-                        //Extract points from bitmap
-                        //TODO see where are whih points
-                        intersections.push_back((invmvp * Vector4f(x / float(windowSizeX), y / float(windowSizeY), 0, 1)).head(3));
-                        alignedLines.push_back(to_dual((invmvp * Vector4f(x / float(windowSizeX), y / float(windowSizeY), 0, 1)).head(3)));
+                    if (*pixel_data >= (0.1 * threshold * 255)) {
+                        // Extract points from bitmap, in view space
+                        xgl = (2*x / float(windowSizeX)) - 1;
+                        ygl = (2*y / float(windowSizeY)) - 1;
 
+                        // Back transform to original space
+                        intersections.push_back((invmvp * Vector4f(xgl, ygl, 0, 1)).head(3));
+                        alignedLines.push_back(to_dual((invmvp * Vector4f(xgl, ygl, 0, 1)).head(3)));
                     }
-
 
                     if (max < *pixel_data) {
                         max = *pixel_data;
-                        xm = x;
-                        ym = y;
+                        xm = xgl;
+                        ym = xgl;
                     }
 
                     pixel_data += 4;
@@ -183,21 +190,22 @@ public:
 
     //Make line from point
     tuple<Vector3f,Vector3f> to_dual(Vector3f point) {
-        return make_tuple(Vector3f(0, -point.y(), 0), Vector3f(point.y()/point.x(), 0, 0));
+        return make_tuple(Vector3f((windowSizeY+point.y())/point.x(), windowSizeY, 0), Vector3f(windowSizeX, point.x()*windowSizeX - point.y(), 0));
     }
 
     void draw() {
-        //Draw detected alignments
-        shader.bind();
+        // Draw detected alignments
+        // Bug bad back transform - nevykresli sa priamka iba body
+        //shader.bind();
         //shader.setUniform("modelViewProj", mvp);
         //shader.uploadAttrib("position", (uint32_t) alignedLines.size() * 6, 3, sizeof(GL_FLOAT),
-        //                    GL_FLOAT, 0, alignedLines.data(), -1);
+        //      GL_FLOAT, 0, alignedLines.data(), -1);
         //shader.drawArray(GL_LINES, 0, alignedLines.size() * 2);
 
-        //shader.bind();
+        shader.bind();
         shader.setUniform("modelViewProj", mvp);
         shader.uploadAttrib("position", (uint32_t) intersections.size() * 3, 3, sizeof(GL_FLOAT),
-                            GL_FLOAT, 0, intersections.data(), -1);
+                         GL_FLOAT, 0, intersections.data(), -1);
         shader.drawArray(GL_POINTS, 0, intersections.size());
     }
 };
